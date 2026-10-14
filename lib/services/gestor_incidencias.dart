@@ -13,8 +13,14 @@ class GestorIncidencias {
   }
 
   List<Incidencia> buscar(String texto) {
-    if (texto.trim().isEmpty) return incidencias;
-    return incidencias.where((x) => x.titulo.contains(texto)).toList();
+    if (texto.isEmpty) return incidencias;
+    final minusculas = texto.toLowerCase();
+    return incidencias.where((x) {
+      return x.titulo.toLowerCase().contains(minusculas) ||
+          x.descripcion.toLowerCase().contains(minusculas) ||
+          x.cliente.toLowerCase().contains(minusculas) ||
+          x.categoria.toLowerCase().contains(minusculas);
+    }).toList();
   }
 
   Incidencia? porId(String id) {
@@ -25,16 +31,41 @@ class GestorIncidencias {
   }
 
   int contar(String estado) {
-    if (estado == 'Pendiente') return cantidadPendientes;
     return incidencias.where((x) => x.estado == estado).length;
   }
 
   Future<void> cambiarEstado(String id, String estado) async {
-    for (var i = 0; i < incidencias.length; i++) {
-      if (incidencias[i].id == id) {
-        incidencias[i].estado = estado;
-        break;
+    final incidencia = porId(id);
+
+    if (incidencia == null) {
+      throw StateError('Incidencia no encontrada: $id');
+    }
+
+    final estadoAnterior = incidencia.estado;
+
+    // Si el estado es exactamente el mismo, no hacemos nada
+    if (estadoAnterior == estado) return;
+
+    // 1. Actualizar el contador de pendientes según corresponda
+    if (estadoAnterior == 'Pendiente' && estado != 'Pendiente') {
+      cantidadPendientes--;
+    } else if (estadoAnterior != 'Pendiente' && estado == 'Pendiente') {
+      cantidadPendientes++;
+    }
+
+    incidencia.estado = estado;
+
+    try {
+      await datos.guardar(incidencias);
+    } catch (e) {
+      // 2. Si falla el guardado, revertimos tanto el estado como el contador
+      incidencia.estado = estadoAnterior;
+      if (estadoAnterior == 'Pendiente' && estado != 'Pendiente') {
+        cantidadPendientes++;
+      } else if (estadoAnterior != 'Pendiente' && estado == 'Pendiente') {
+        cantidadPendientes--;
       }
+      rethrow;
     }
   }
 

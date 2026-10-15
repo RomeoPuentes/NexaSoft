@@ -69,8 +69,37 @@ class GestorIncidencias {
     }
   }
 
-  Future<void> crear(String titulo, String descripcion, String cliente,
-      String categoria) async {
+  Future<void> cambiarPrioridad(
+    String id,
+    String nuevaPrioridad,
+  ) async {
+    if (!Incidencia.prioridades.contains(nuevaPrioridad)) {
+      throw ArgumentError(
+        'Prioridad no válida: $nuevaPrioridad',
+      );
+    }
+    final incidencia = porId(id);
+    if (incidencia == null) {
+      throw StateError('Incidencia no encontrada: $id');
+    }
+    final prioridadAnterior = incidencia.prioridad;
+    if (prioridadAnterior == nuevaPrioridad) return;
+
+    incidencia.prioridad = nuevaPrioridad;
+    try {
+      await datos.guardar(incidencias);
+    } catch (e) {
+      incidencia.prioridad = prioridadAnterior;
+      rethrow;
+    }
+  }
+
+  Future<void> crear(
+      String titulo, String descripcion, String cliente, String categoria,
+      {String prioridad = 'Media'}) async {
+    if (!Incidencia.prioridades.contains(prioridad)) {
+      throw ArgumentError('Prioridad inválida: $prioridad');
+    }
     final nuevo = Incidencia(
       id: 'INC-${DateTime.now().microsecondsSinceEpoch}',
       titulo: titulo,
@@ -79,10 +108,15 @@ class GestorIncidencias {
       categoria: categoria,
       estado: 'Pendiente',
       fecha: DateTime.now().toIso8601String().split('T').first,
+      prioridad: prioridad,
     );
     incidencias.insert(0, nuevo);
-    cantidadPendientes++;
-    await datos.guardar(incidencias);
+    try {
+      await datos.guardar(incidencias);
+    } catch (e) {
+      incidencias.removeAt(0); // Revertir la adición si falla el guardado
+      rethrow;
+    }
   }
 
   Future<void> reiniciarDemo() async {

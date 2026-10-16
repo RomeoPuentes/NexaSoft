@@ -23,6 +23,28 @@ class GestorIncidencias {
     }).toList();
   }
 
+  List<Incidencia> filtrar({
+    String texto = '',
+    String estado = 'Todos',
+    String prioridad = 'Todas',
+  }) {
+    final consulta = texto.trim().toLowerCase();
+    return incidencias.where((incidencia) {
+      final coincideTexto = consulta.isEmpty ||
+          incidencia.titulo.toLowerCase().contains(consulta) ||
+          incidencia.descripcion.toLowerCase().contains(consulta) ||
+          incidencia.cliente.toLowerCase().contains(consulta) ||
+          incidencia.categoria.toLowerCase().contains(consulta);
+
+      final coincideEstado = estado == 'Todos' || incidencia.estado == estado;
+
+      final coincidePrioridad =
+          prioridad == 'Todas' || incidencia.prioridad == prioridad;
+
+      return coincideTexto && coincideEstado && coincidePrioridad;
+    }).toList();
+  }
+
   Incidencia? porId(String id) {
     for (var x in incidencias) {
       if (x.id == id) return x;
